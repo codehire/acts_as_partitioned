@@ -1,3 +1,3 @@
 # Include hook code here
-require 'acts_as_partitioned'
+require 'active_record/acts/partitioned'
 ActiveRecord::Base.send(:include, ActiveRecord::Acts::Partitioned)
