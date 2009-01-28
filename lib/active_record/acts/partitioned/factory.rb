@@ -2,11 +2,13 @@ module ActiveRecord
   module Acts #:nodoc:
     module Partitioned #:nodoc:
       class Factory
-        attr_reader :model
+        attr_reader :model, :partition_class
 
         # Key can be a symbol or an array of symbols
         # Dates are assumed to be ranges by day
-        def initialize(model, key, options = {})
+        # Options are:
+        #  * rule
+        def initialize(model, key, partition_class, options = {})
           @model = model
           spl = @model.table_name.split(".")
           @schema_name, @table_name = if spl.size > 1
@@ -15,6 +17,7 @@ module ActiveRecord
             spl
           end
           @key = key
+          @partition_class = partition_class
           # TODO: Raise if model does not have key column(s)
           @options = options
         end
@@ -30,6 +33,7 @@ module ActiveRecord
               CHECK (#{partition_rule.check(key_hash).join(' AND ')})
             ) INHERITS (#{table_name});
           SQL
+          # WeblogPartition.create(key_hash)
           # TODO: Indexes
           # TODO: Return the partition object
         end
