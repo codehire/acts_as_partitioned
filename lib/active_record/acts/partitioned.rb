@@ -25,7 +25,7 @@ module ActiveRecord
       end
 
       module ClassMethods
-        def acts_as_partitioned(*args)
+	def partition(*args)
           if args.last.instance_of?(Hash)
             options = args.last
             key = args[0...-1]
@@ -34,17 +34,18 @@ module ActiveRecord
             key = args
           end
           sing = class << self; self; end
-          eval <<-EVAL
-            class ActiveRecord::Acts::Partitioned::#{self.name}Partition < ActiveRecord::Acts::Partitioned::Partition
-            end
-          EVAL
-          # TODO: Put this in sep rake task
-          Structure.init_partition_catalog(self, key, :force => true)
+          eval "class ActiveRecord::Acts::Partitioned::#{self.name}Partition < ActiveRecord::Acts::Partitioned::Partition; end"
           klass = "ActiveRecord::Acts::Partitioned::#{self.name}Partition".constantize
-          sing.send(:define_method, :partitions) {
-            Factory.new(self, key, klass, options)
-          }
+	  factory = Factory.new(self, klass, options)
+	  args.each { |arg| factory.partition_by(key) }
+	  yield factory if block_given?
+          sing.send(:define_method, :partitions) { factory }
+          # TODO: Put this in sep rake task and call on factory - should this be called Proxy
+	  factory.migrate(:force => true)
+	end
 
+        def acts_as_partitioned(*args)
+	  # TODO: Implement this stuff on the proxy
 =begin
           sing.send(:include, ActiveRecord::Acts::Partitioned::SingletonMethods)
           sing.send(:define_method, :partition_archive?) { options[:archive] || false }
