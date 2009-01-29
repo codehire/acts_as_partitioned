@@ -48,9 +48,9 @@ module ActiveRecord
         def create(key_hash)
 	  # TODO: Put this in a transaction
           # TODO: Raise if a key missing
-          #partiton_id = WeblogPartition.create(key_hash)
+          partiton_id = WeblogPartition.create(key_hash)
           #self.connection.execute(<<-SQL)
-	  partition_id = 1 # Remove
+	  #partition_id = 1 # Remove
           puts(<<-SQL)
             CREATE TABLE #{table_name}_part_#{partition_id} (
               CHECK (#{apply_check(key_hash).join(' AND ')})
