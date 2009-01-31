@@ -90,12 +90,23 @@ module ActiveRecord
           end
         end
 
-
         def determine_column_type(column)
           @model.columns.detect do |c|
             c.name == column.to_s
           end.type
         end
+
+	def dump_age
+          if @options[:dump_age].kind_of?(Proc)
+            @options[:dump_age].call || 0
+          else
+            @options[:dump_age] || 0
+          end
+	end
+
+	def archive?
+          @options[:archive} || false
+	end
 
         private
 	  def apply_check(key_hash)

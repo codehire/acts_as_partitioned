@@ -17,6 +17,9 @@ module ActiveRecord
         #def deactivate!
         #end
 
+        # TODO: When finding fix ranges if necessary
+	# def find(*args)
+
         def drop!
 	  self.transaction do
 	    @@factory.model.connection.execute <<-SQL
