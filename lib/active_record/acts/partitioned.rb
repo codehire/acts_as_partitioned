@@ -34,14 +34,19 @@ module ActiveRecord
             key = args
           end
           sing = class << self; self; end
-          eval "class ActiveRecord::Acts::Partitioned::#{self.name}Partition < ActiveRecord::Acts::Partitioned::Partition; end"
+          eval <<-EVAL
+            class ActiveRecord::Acts::Partitioned::#{self.name}Partition < ActiveRecord::Acts::Partitioned::Partition
+              set_table_name '#{self.table_name.singularize}_partitions'
+            end
+          EVAL
           klass = "ActiveRecord::Acts::Partitioned::#{self.name}Partition".constantize
 	  factory = Factory.new(self, klass, options)
 	  args.each { |arg| factory.partition_by(key) }
 	  yield factory if block_given?
+          factory.set_validations
           sing.send(:define_method, :partitions) { factory }
           # TODO: Put this in sep rake task and call on factory - should this be called Proxy
-	  factory.migrate(:force => true)
+	  #factory.migrate(:force => true)
 	end
 
         def acts_as_partitioned(*args)
