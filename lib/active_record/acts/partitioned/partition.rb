@@ -1,14 +1,12 @@
 module ActiveRecord
   module Acts #:nodoc:
     module Partitioned #:nodoc:
-      # TODO: Maybe we use a catalog system like to active report
       class Partition < ActiveRecord::Base
 
         def self.set_factory(factory)
           @@factory = factory
         end
 
-        # TODO: Add validation
         def initialize(attrs = {})
           super(modified_attrs(attrs))
         end
@@ -20,7 +18,12 @@ module ActiveRecord
         #end
 
         def drop!
-
+	  self.transaction do
+	    @@factory.model.connection.execute <<-SQL
+	      DROP TABLE #{name}
+	    SQL
+	    self.destroy
+	  end
         end
 
         # Will unlink the partition from the parent table but not delete
@@ -35,11 +38,13 @@ module ActiveRecord
         end
 
         def dump
-
+	  conn = @@factory.model.connection.raw_connection
+	  `pg_dump -h #{conn.host} -U #{conn.user} -t #{self.tablename} #{conn.db} | gzip`
         end
 
         def size
-
+          rec = self.class.find(:first, :select => "relpages", :from => "pg_class", :conditions => "relname = '#{self.tablename}'")
+          rec[:relpages].to_i * 8192
         end
 
         def name

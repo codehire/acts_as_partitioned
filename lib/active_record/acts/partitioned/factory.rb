@@ -31,13 +31,11 @@ module ActiveRecord
 
 
       # TODO: Rename to Proxy
+      # TODO: If we were clever we would merge this with the Partiton AR model
       class Factory
         attr_reader :model, :partition_class
+	delegate :find, :to => :partition_class
 
-        # Key can be a symbol or an array of symbols
-        # Dates are assumed to be ranges by day
-        # Options are:
-        #  * rule
         def initialize(model, partition_class, options = {})
           @model = model
           spl = @model.table_name.split(".")
@@ -76,10 +74,6 @@ module ActiveRecord
 	  Structure.init_partition_catalog(model, @keys, options)
 	end
 
-        # TODO: partition model
-        # def unlink
-        # def destroy
-
         # Arguments are the keys specified in creation as a hash
         # eg: create(:date => Date.today, :domain => domain)
         def create(key_hash)
@@ -96,39 +90,6 @@ module ActiveRecord
           end
         end
 
-	def apply_check(key_hash)
-	  checks = []
-	  @keys.each do |key|
-	    value = key_hash[key.column]
-	    unless value
-	      raise "No value provided for key, #{key.column}"
-	    end
-	    case key.type
-	      when :discrete
-	        checks << "#{key.column} = '#{value}'"
-	      when :continuous
-	        checks << "#{key.column} >= '#{value.begin}'"
-	        checks << "#{key.column} <#{'=' unless value.exclude_end?} '#{value.begin}'"
-	    end
-	  end
-	  checks
-	end
-
-        def find(arg)
-          if arg == :all
-            puts "All"
-            conditions = "tablename LIKE '#{@table_name}_part_%'"
-            conditions << if @schema_name
-              " AND schemaname = '#{@schema_name}'"
-            else
-              " AND schemaname = current_schema()"
-            end
-            parts = self.find(:all, :from => "pg_catalog.pg_tables", :conditions => conditions)
-            # TODO: Convert to partition objects
-          else
-            puts partition_rule.name(arg)
-          end
-        end
 
         def determine_column_type(column)
           @model.columns.detect do |c|
@@ -137,19 +98,23 @@ module ActiveRecord
         end
 
         private
-          def partition_rule
-            if @options.has_key?(:rule)
-              rule = @options[:rule]
-              case rule
-                when Symbol
-                  rule.to_s.constantize.new(self)
-                when Class
-                  rule.new(self)
-              end
-            else
-              ByValue.new(self)
-            end
-          end
+	  def apply_check(key_hash)
+  	    checks = []
+  	    @keys.each do |key|
+	      value = key_hash[key.column]
+	      unless value
+	        raise "No value provided for key, #{key.column}"
+	      end
+	      case key.type
+	        when :discrete
+	          checks << "#{key.column} = '#{value}'"
+	        when :continuous
+	          checks << "#{key.column} >= '#{value.begin}'"
+	          checks << "#{key.column} <#{'=' unless value.exclude_end?} '#{value.begin}'"
+	      end
+	    end
+	    checks
+	  end
 
           def table_name
             if @schema_name
