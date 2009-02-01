@@ -11,6 +11,10 @@ module ActiveRecord
       end
 
       class Keys < Array
+	def columns
+	  self.map(&:column)
+	end
+
         def column_names
           self.inject([]) do |names, key|
             case key.type
@@ -58,6 +62,7 @@ module ActiveRecord
 	end
 
         # TODO: Prevent overlapping ranges
+	# TODO: Private?
         def set_validations
           @keys.each do |key|
             case key.type
@@ -72,6 +77,13 @@ module ActiveRecord
 
 	def migrate(options = {:force => false})
 	  Structure.init_partition_catalog(model, @keys, options)
+	end
+
+	#Weblog.partitions.copy_into do |copy|
+        #  copy << hash
+	#end
+	def copy_into
+	  yield copy_file if block_given?
 	end
 
         # Arguments are the keys specified in creation as a hash
@@ -105,7 +117,7 @@ module ActiveRecord
 	end
 
 	def archive?
-          @options[:archive} || false
+          @options[:archive] || false
 	end
 
         private
