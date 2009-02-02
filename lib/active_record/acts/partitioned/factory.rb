@@ -35,10 +35,11 @@ module ActiveRecord
 
 
       # TODO: Rename to Proxy
-      # TODO: If we were clever we would merge this with the Partiton AR model
+      # TODO: If we were clever we would merge this with the Partiton AR model - can't merge as you need a proxy instance but we can move lots of methods over
       class Factory
         attr_reader :model, :partition_class
 	delegate :find, :to => :partition_class
+	delegate :with_key, :to => :partition_class
 
         def initialize(model, partition_class, options = {})
           @model = model
@@ -64,6 +65,8 @@ module ActiveRecord
         # TODO: Prevent overlapping ranges
 	# TODO: Private?
         def set_validations
+          partition_class.set_keys(@keys)
+          # TODO: Move below this line to the partition class itself
           @keys.each do |key|
             case key.type
               when :continuous
@@ -100,6 +103,30 @@ module ActiveRecord
             # TODO: Indexes
             partition
           end
+        end
+
+        # Finds a partition to which these keys belong
+        # Not by keys used to create the partition
+        # This is the same thing for discrete keys
+        # but for continuous (ie; ranged keys)
+        # the end points of a range may not equal the values
+        # stored in the part
+        # Here we see if a value fits within the range
+        # Use this method if you want to know which partition
+        # to write data to
+        def find_for(hash)
+          conditions = []
+          @keys.each do |key|
+            # TODO: Raise if hash is missing a key
+            case key.type
+              when :discrete
+                conditions << "#{key.column} = '#{hash[key.column]}'"
+              when :continuous
+                # TODO: How do we handle exclusive?
+                conditions << "'#{hash[key.column]}' >= #{key.column}_begin AND '#{hash[key.column]}' <= #{key.column}_end"
+            end
+          end
+          partition_class.find(:first, :conditions => conditions.join(" AND "))
         end
 
         def determine_column_type(column)

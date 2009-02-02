@@ -7,8 +7,26 @@ module ActiveRecord
           @@factory = factory
         end
 
+        def self.set_keys(keys)
+          @@keys = keys
+        end
+
+	def self.with_key(hash)
+          self.scoped(:conditions => modified_attrs(hash)).first
+        end
+
+        # Returns true if the hash values should be stored in this partition
+        def include?(hash)
+          self.key.each_pair do |key, value|
+            unless value === hash[key]
+              return false
+            end
+          end
+          true
+        end
+
         def initialize(attrs = {})
-          super(modified_attrs(attrs))
+          super(self.class.modified_attrs(attrs))
         end
 
         # TODO: Do we really need this?
@@ -17,8 +35,22 @@ module ActiveRecord
         #def deactivate!
         #end
 
-        # TODO: When finding fix ranges if necessary
-	# def find(*args)
+        def key
+          hash = {}
+          @@keys.each do |k|
+            case k.type
+              when :continuous
+                # TODO: We do this a lot - can we DRY it up?
+                r_start = self.send("#{k.column}_begin")
+                r_end = self.send("#{k.column}_end")
+                r_exclusive = self.send("#{k.column}_exclusive")
+                hash[k.column] = Range.new(r_start, r_end, r_exclusive)
+              when :discrete
+                hash[k.column] = self.send(k.column)
+            end
+          end
+          hash
+        end
 
         def drop!
 	  self.transaction do
@@ -54,12 +86,17 @@ module ActiveRecord
           "#{@@factory.model.table_name}_part_#{id}"
         end
 
+        def copy_into(hash)
+          @copy_file ||= CopyFile.new(self.name)
+          @copy_file << hash
+        end
+
         # Modify parameters to suit ranges if required
         private
-          def modified_attrs(attrs)
+          def self.modified_attrs(attrs)
             hash = {}
             attrs.each_pair do |key, value|
-              if value.instance_of? Range
+              if value.instance_of?(Range)
                 hash["#{key}_begin"] = value.begin
                 hash["#{key}_end"] = value.end
                 hash["#{key}_exclusive"] = value.exclude_end?
