@@ -1,80 +1,13 @@
+require 'active_record/acts/partitioned/cache/partition_cache'
+
 module ActiveRecord
   module Acts
     module Partitioned
-      class PartitionCacheEntry
-        attr_accessor :partition
-
-        def initialize(keys)
-          @keys = keys
-          @columns = keys.columns
-        end
-
-	def match(hash)
-          @columns.each do |column|
-            value = hash[column]
-            raise "No value provided for #{column}" unless value
-	    unless match_instance(column, value)
-	      return false
-	    end
-	  end
-	  true
-	end
-	alias :== :match
-
-	private
-	  def match_instance(key, value)
-	    instance_variable_get("@#{key}") === value
-	  end
-      end
-
-      class PartitionCacheEntryFactory
-	def initialize(keys)
-	  @keys = keys
-	end
-
-        def create
-	  entry = PartitionCacheEntry.new(@keys)
-	  sing = class << entry; self ; end
-	  @keys.each do |key|
-  	    sing.send(:define_method, "#{key.column}=") { |arg|
-	      instance_variable_set("@#{key.column}".to_sym, arg)
-	    }
-	  end
-	  entry
-        end
-      end    
-
-      class PartitionCache
-	def initialize(keys)
-	  @pce_fact = PartitionCacheEntryFactory.new(keys)
-	  @cache = []
-	end
-
-	def add(partition)
-	  # TODO: Ensure we can't add duplicate keys (maybe just overwrite dupes)
-	  @entry = @pce_fact.create
-	  @entry.partition = partition
-	  # TODO: Maybe we put this inside the create method
-	  partition.key.each_pair do |key, value|
-	    @entry.send("#{key}=", value)
-	  end
-	  # TODO: Check to see if it has been added
-	  @cache << @entry
-	end
-
-	def find(hash)
-	  res = @cache.find do |entry|
-	    entry == hash
-	  end
-          res ? res.partition : nil
-	end
-      end
-
       class CopyProxy
 	def initialize(keys, factory)
           @keys = keys
           @factory = factory
-	  @cache = PartitionCache.new(@keys)
+	  @cache = Cache::PartitionCache.new(@keys)
 	end
 
 	# determine partition

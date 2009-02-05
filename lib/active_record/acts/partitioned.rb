@@ -1,3 +1,5 @@
+require 'active_record/acts/partitioned/key'
+require 'active_record/acts/partitioned/keys'
 require 'active_record/acts/partitioned/factory'
 require 'active_record/acts/partitioned/structure'
 require 'active_record/acts/partitioned/copy_proxy'

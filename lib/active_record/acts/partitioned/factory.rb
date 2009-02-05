@@ -1,38 +1,6 @@
 module ActiveRecord
   module Acts #:nodoc:
     module Partitioned #:nodoc:
-      class Key
-        attr_accessor :column, :type, :using
-
-	def initialize(column, options = {})
-	  @column = column
-	  @type = options[:ranged] ? :continuous : :discrete
-	end
-      end
-
-      class Keys < Array
-	def columns
-	  self.map(&:column)
-	end
-
-        def column_names
-          self.inject([]) do |names, key|
-            case key.type
-              when :continuous
-                names << "#{key.column}_begin"
-                names << "#{key.column}_end"
-              when :discrete
-                names << key.column
-            end
-          end
-        end
-
-        # Returns the list of column names excluding this one
-        def remaining_columns(column)
-          self.column_names - [column]
-        end
-      end
-
 
       # TODO: Rename to Proxy
       # TODO: If we were clever we would merge this with the Partiton AR model - can't merge as you need a proxy instance but we can move lots of methods over
