@@ -18,5 +18,7 @@ class PartitionCacheEntryFactoryTest < Test::Unit::TestCase
     assert entry.methods.include?("username=")
     assert entry.methods.include?("profile_id=")
     assert entry.methods.include?("created_at=")
+    entry.username = "daniel"
+    assert_equal entry.instance_variable_get("@username"), "daniel"
   end
 end
