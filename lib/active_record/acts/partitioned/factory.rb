@@ -119,9 +119,9 @@ module ActiveRecord
 	  def apply_check(key_hash)
   	    checks = []
   	    @keys.each do |key|
-	      value = key_hash[key.column]
+	      value = key_hash[key.column.to_sym]
 	      unless value
-	        raise "No value provided for key, #{key.column}"
+	        raise "No value provided for key #{key.column}, hash is #{key_hash.inspect}"
 	      end
 	      case key.type
 	        when :discrete

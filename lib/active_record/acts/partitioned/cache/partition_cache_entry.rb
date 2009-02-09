@@ -10,10 +10,11 @@ module ActiveRecord
             @columns = keys.columns
           end
 
-    	  def match(hash)
+    	  def match(h)
+            hash = HashWithIndifferentAccess.new(h)
             @columns.each do |column|
               value = hash[column.to_sym]
-              raise "No value provided for #{column}" unless value
+              raise "No value provided for #{column} (#{column.class})" unless value
 	      unless match_instance(column, value)
 	        return false
 	      end
@@ -24,7 +25,8 @@ module ActiveRecord
 
   	  private
 	    def match_instance(key, value)
-	      instance_variable_get("@#{key}") === value
+	      compare_to = instance_variable_get("@#{key}")
+              compare_to === value || compare_to == value
 	    end
         end
       end

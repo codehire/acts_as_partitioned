@@ -1,0 +1,7 @@
+# replace with your testing environment database
+
+test:
+  adapter: postgresql
+  username: postgres
+  host: localhost
+  database: acts_as_partitioned_plugin

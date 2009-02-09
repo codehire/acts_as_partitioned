@@ -36,7 +36,7 @@ module ActiveRecord
         #end
 
         def key
-          hash = {}
+          hash = HashWithIndifferentAccess.new
           @@keys.each do |k|
             case k.type
               when :continuous
@@ -104,7 +104,6 @@ module ActiveRecord
                 hash[key] = value
               end
             end
-            puts "Modified hash = #{hash.inspect}"
             hash
           end
       end

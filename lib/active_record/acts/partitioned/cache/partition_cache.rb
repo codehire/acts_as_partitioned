@@ -8,16 +8,15 @@ module ActiveRecord
 	    @cache = []
 	  end
 
+          # TODO: Add cache expiry
 	  def add(partition)
-	    # TODO: Ensure we can't add duplicate keys (maybe just overwrite dupes)
 	    @entry = @pce_fact.create
 	    @entry.partition = partition
-	    # TODO: Maybe we put this inside the create method
 	    partition.key.each_pair do |key, value|
 	      @entry.send("#{key}=", value)
 	    end
-	    # TODO: Check to see if it has been added
-	    @cache << @entry
+	    found = self.find(partition.key)
+	    @cache << @entry unless found
 	  end
 
 	  def find(hash)
@@ -26,6 +25,10 @@ module ActiveRecord
 	    end
             res ? res.partition : nil
 	  end
+
+          def size
+            @cache.size
+          end
         end
       end
     end
