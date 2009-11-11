@@ -2,25 +2,24 @@ module ActiveRecord
   module Acts #:nodoc:
     module Partitioned #:nodoc:
       class Keys < Array
-	def columns
-	  self.map(&:column)
-	end
+        def columns
+          self.map(&:column)
+        end
 
         def column_names
-          self.inject([]) do |names, key|
-            case key.type
-              when :continuous
-                names << "#{key.column}_begin"
-                names << "#{key.column}_end"
-              when :discrete
-                names << key.column
-            end
-          end
+          self.map { |k| k.column_names }.flatten
         end
 
         # Returns the list of column names excluding this one
         def remaining_columns(column)
           self.column_names - [column]
+        end
+
+        def create_partition_tables(model, opts = {})
+          each_with_index do |key, index|
+            key_opts = index == 0 ? opts : opts.merge(:parent => self[index - 1])
+            key.create_partition_table(model, key_opts)
+          end
         end
       end
     end

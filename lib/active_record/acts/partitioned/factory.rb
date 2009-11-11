@@ -6,19 +6,13 @@ module ActiveRecord
       # TODO: If we were clever we would merge this with the Partiton AR model - can't merge as you need a proxy instance but we can move lots of methods over
       class Factory
         attr_reader :model, :partition_class
-	delegate :find, :to => :partition_class
-	delegate :with_key, :to => :partition_class
+      	delegate :find, :to => :partition_class
+	      delegate :with_key, :to => :partition_class
 
         def initialize(model, partition_class, options = {})
           @model = model
-          spl = @model.table_name.split(".")
-          @schema_name, @table_name = if spl.size == 1
-            [ nil, spl[0] ]
-          else
-            spl
-          end
           @keys = Keys.new
-	  # TODO: Should we raise if we never add any keys?
+      	  # TODO: Should we raise if we never add any keys?
           @partition_class = partition_class
           partition_class.set_factory(self)
           # TODO: Raise if model does not have key column(s)
@@ -27,11 +21,11 @@ module ActiveRecord
 
         def partition_by(column, options = {})
           # TODO: Raise if caller tries to partition on primary key
-	  @keys << Key.new(column, options)
-	end
+          @keys << Key.new(column, options)
+        end
 
         # TODO: Prevent overlapping ranges
-	# TODO: Private?
+      	# TODO: Private?
         def set_validations
           partition_class.set_keys(@keys)
           # TODO: Move below this line to the partition class itself
@@ -46,16 +40,16 @@ module ActiveRecord
           end
         end
 
-	def migrate(options = {:force => false})
-	  Structure.init_partition_catalog(model, @keys, options)
-	end
+        def migrate(options = {:force => false})
+          Structure.init_partition_catalog(model, @keys, options)
+        end
 
-	#Weblog.partitions.copy_into do |copy|
-        #  copy << hash
-	#end
-	def copy_into
-	  yield copy_file if block_given?
-	end
+        #Weblog.partitions.copy_into do |copy|
+              #  copy << hash
+        #end
+        def copy_into
+          yield copy_file if block_given?
+        end
 
         # Arguments are the keys specified in creation as a hash
         # eg: create(:date => Date.today, :domain => domain)
@@ -63,11 +57,7 @@ module ActiveRecord
           # TODO: Raise if a key missing
           @model.transaction do
             partition = partition_class.create!(key_hash)
-            @model.connection.execute(<<-SQL)
-              CREATE TABLE #{table_name}_part_#{partition.id} (
-                CHECK (#{apply_check(key_hash).join(' AND ')})
-              ) INHERITS (#{table_name});
-            SQL
+            @keys.create_partition_tables(@model, :key_hash => key_hash)
             # TODO: Indexes
             partition
           end
@@ -103,44 +93,38 @@ module ActiveRecord
           end.type
         end
 
-	def dump_age
+      	def dump_age
           if @options[:dump_age].kind_of?(Proc)
             @options[:dump_age].call || 0
           else
             @options[:dump_age] || 0
           end
-	end
+	      end
 
-	def archive?
+	      def archive?
           @options[:archive] || false
-	end
+	      end
 
         private
-	  def apply_check(key_hash)
-  	    checks = []
-  	    @keys.each do |key|
-	      value = key_hash[key.column.to_sym]
-	      unless value
-	        raise "No value provided for key #{key.column}, hash is #{key_hash.inspect}"
-	      end
-	      case key.type
-	        when :discrete
-	          checks << "#{key.column} = '#{value}'"
-	        when :continuous
-	          checks << "#{key.column} >= '#{value.begin}'"
-	          checks << "#{key.column} <#{'=' unless value.exclude_end?} '#{value.begin}'"
-	      end
-	    end
-	    checks
-	  end
-
-          def table_name
-            if @schema_name
-              "#{@schema_name}.#{@table_name}"
-            else
-              @table_name
+=begin
+	        def apply_check(key_hash)
+            checks = []
+            @keys.each do |key|
+              value = key_hash[key.column.to_sym]
+              unless value
+                raise "No value provided for key #{key.column}, hash is #{key_hash.inspect}"
+              end
+              case key.type
+                when :discrete
+                  checks << "#{key.column} = '#{value}'"
+                when :continuous
+                  checks << "#{key.column} >= '#{value.begin}'"
+                  checks << "#{key.column} <#{'=' unless value.exclude_end?} '#{value.begin}'"
+              end
             end
+            checks
           end
+=end
       end
     end
   end

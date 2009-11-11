@@ -11,7 +11,8 @@ module ActiveRecord
           @@keys = keys
         end
 
-	def self.with_key(hash)
+        # TODO: WHAT THE HELL??
+      	def self.with_key(hash)
           self.scoped(:conditions => modified_attrs(hash)).first
         end
 
@@ -53,12 +54,12 @@ module ActiveRecord
         end
 
         def drop!
-	  self.transaction do
-	    @@factory.model.connection.execute <<-SQL
-	      DROP TABLE #{name}
-	    SQL
-	    self.destroy
-	  end
+          self.transaction do
+            @@factory.model.connection.execute <<-SQL
+              DROP TABLE #{name}
+            SQL
+            self.destroy
+          end
         end
 
         # Will unlink the partition from the parent table but not delete
@@ -73,8 +74,8 @@ module ActiveRecord
         end
 
         def dump
-	  conn = @@factory.model.connection.raw_connection
-	  `pg_dump -h #{conn.host} -U #{conn.user} -t #{self.tablename} #{conn.db} | gzip`
+          conn = @@factory.model.connection.raw_connection
+          `pg_dump -h #{conn.host} -U #{conn.user} -t #{self.tablename} #{conn.db} | gzip`
         end
 
         def size
