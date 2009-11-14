@@ -6,6 +6,7 @@ module ActiveRecord
       # TODO: If we were clever we would merge this with the Partiton AR model - can't merge as you need a proxy instance but we can move lots of methods over
       class Factory
         attr_reader :model, :partition_class
+        attr_reader :keys
       	delegate :find, :to => :partition_class
 	      delegate :with_key, :to => :partition_class
 
@@ -27,7 +28,6 @@ module ActiveRecord
         # TODO: Prevent overlapping ranges
       	# TODO: Private?
         def set_validations
-          partition_class.set_keys(@keys)
           # TODO: Move below this line to the partition class itself
           @keys.each do |key|
             case key.type
@@ -44,11 +44,9 @@ module ActiveRecord
           Structure.init_partition_catalog(model, @keys, options)
         end
 
-        #Weblog.partitions.copy_into do |copy|
-              #  copy << hash
-        #end
-        def copy_into
-          yield copy_file if block_given?
+        def copy(filename)
+          conn = @model.connection.raw_connection
+          `psql --set ON_ERROR_STOP=1 --single-transaction -p #{conn.port} -h #{conn.host} -U #{conn.user} -t #{self.tablename} #{conn.db} < #{filename}`
         end
 
         # Arguments are the keys specified in creation as a hash
@@ -73,24 +71,25 @@ module ActiveRecord
         # Use this method if you want to know which partition
         # to write data to
         def find_for(hash)
-          conditions = []
+          conditions = {}
           @keys.each do |key|
-            # TODO: Raise if hash is missing a key
+            value = hash[key.column.to_sym]
+            raise "No value provided for #{key.column}" unless value
             case key.type
               when :discrete
-                conditions << "#{key.column} = '#{hash[key.column]}'"
+                conditions[key.column.to_sym] = value
               when :continuous
-                # TODO: How do we handle exclusive?
-                conditions << "'#{hash[key.column]}' >= #{key.column}_begin AND '#{hash[key.column]}' <= #{key.column}_end"
+                conditions[:"#{key.column}_begin"] = value.begin
+                conditions[:"#{key.column}_end"] = value.end
+                conditions[:"#{key.column}_exclusive"] = value.exclude_end?
             end
           end
-          partition_class.find(:first, :conditions => conditions.join(" AND "))
+          puts "conditions = #{conditions.inspect}"
+          partition_class.find(:first, :conditions => conditions)
         end
 
-        def determine_column_type(column)
-          @model.columns.detect do |c|
-            c.name == column.to_s
-          end.type
+        def find_or_create_for(hash)
+          find_for(hash) || create(hash)
         end
 
       	def dump_age
@@ -104,27 +103,6 @@ module ActiveRecord
 	      def archive?
           @options[:archive] || false
 	      end
-
-        private
-=begin
-	        def apply_check(key_hash)
-            checks = []
-            @keys.each do |key|
-              value = key_hash[key.column.to_sym]
-              unless value
-                raise "No value provided for key #{key.column}, hash is #{key_hash.inspect}"
-              end
-              case key.type
-                when :discrete
-                  checks << "#{key.column} = '#{value}'"
-                when :continuous
-                  checks << "#{key.column} >= '#{value.begin}'"
-                  checks << "#{key.column} <#{'=' unless value.exclude_end?} '#{value.begin}'"
-              end
-            end
-            checks
-          end
-=end
       end
     end
   end

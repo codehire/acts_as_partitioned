@@ -21,6 +21,10 @@ module ActiveRecord
             key.create_partition_table(model, key_opts)
           end
         end
+
+        def partition_handle(opts)
+          map { |k| k.partition_handle(opts) }.join("_")
+        end
       end
     end
   end

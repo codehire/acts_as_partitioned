@@ -19,17 +19,18 @@ module ActiveRecord
         def create_partition_table(model, opts = {})
           table_name = model.table_name
           table_name << "_part_" + opts[:parent].partition_handle(:key_hash => opts[:key_hash]) if opts.has_key?(:parent)
-          model.connection.execute(<<-SQL)
-            CREATE TABLE #{model.table_name}_part_#{partition_handle(opts)} (
-              CHECK (#{apply_check(opts[:key_hash]).join(' AND ')})
-            ) INHERITS (#{table_name});
-          SQL
+          partition_name = "#{model.table_name}_part_#{partition_handle(opts)}"
+          unless model.connection.tables.include?(partition_name)
+            model.connection.execute(<<-SQL)
+              CREATE TABLE #{partition_name} (
+                CHECK (#{apply_check(opts[:key_hash]).join(' AND ')})
+              ) INHERITS (#{table_name});
+            SQL
+          end
         end
 
-        # TODO: Maybe we put rules on the partitions index table to drop the relevant tables if we delete rows?? Or just rely on Ruby
         def partition_handle(opts)
           handle = []
-          puts "Parent is: #{opts[:parent].partition_handle(:key_hash => opts[:key_hash]).inspect}" if opts.has_key?(:parent)
           handle << opts[:parent].partition_handle(:key_hash => opts[:key_hash]) if opts.has_key?(:parent)
           value = opts[:key_hash][@column.to_sym]
           handle << case @type
@@ -38,13 +39,13 @@ module ActiveRecord
           end
           handle.flatten.map do |h|
             case h
-              when Date then h.strftime("%Y%m%d")
-              when Timestamp then h.strftime("%Y%m%d%H%M")
+              when Date,Time,Timestamp then h.strftime("%Y%m%d%H%M")
               else h
             end
           end.join("_")
         end
 
+        private
 	        def apply_check(key_hash)
             value = key_hash[@column.to_sym]
             unless value

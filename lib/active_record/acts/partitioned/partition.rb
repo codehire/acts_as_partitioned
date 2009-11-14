@@ -7,10 +7,6 @@ module ActiveRecord
           @@factory = factory
         end
 
-        def self.set_keys(keys)
-          @@keys = keys
-        end
-
         # TODO: WHAT THE HELL??
       	def self.with_key(hash)
           self.scoped(:conditions => modified_attrs(hash)).first
@@ -30,35 +26,23 @@ module ActiveRecord
           super(self.class.modified_attrs(attrs))
         end
 
-        # TODO: Do we really need this?
-        #def activate!
-        #end
-        #def deactivate!
-        #end
-
-        def key
-          hash = HashWithIndifferentAccess.new
-          @@keys.each do |k|
-            case k.type
-              when :continuous
-                # TODO: We do this a lot - can we DRY it up?
-                r_start = self.send("#{k.column}_begin")
-                r_end = self.send("#{k.column}_end")
-                r_exclusive = self.send("#{k.column}_exclusive")
-                hash[k.column] = Range.new(r_start, r_end, r_exclusive)
-              when :discrete
-                hash[k.column] = self.send(k.column)
-            end
-          end
-          hash
-        end
-
+        # TODO: Maybe we should overwrite destroy
         def drop!
           self.transaction do
-            @@factory.model.connection.execute <<-SQL
-              DROP TABLE #{name}
-            SQL
+            @@factory.model.connection.execute "DROP TABLE #{name}"
             self.destroy
+            if num_siblings == 0
+              # Delete the parent
+              @@factory.model.connection.execute "DROP TABLE #{parent_name}"
+            end
+          end
+        end
+
+        def num_siblings
+          parent = @@factory.keys[-2] # second to last
+          if parent
+            # TODO: This won't handle a ranged parent yet
+            self.class.count(:conditions => { parent.column => attributes[parent.column] })
           end
         end
 
@@ -84,12 +68,12 @@ module ActiveRecord
         end
 
         def name
-          "#{@@factory.model.table_name}_part_#{id}"
+          "#{@@factory.model.table_name}_part_#{@@factory.keys.partition_handle(:key_hash => key)}"
         end
 
-        def copy_into(hash)
-          @copy_file ||= CopyFile.new(self.name)
-          @copy_file << hash
+        def parent_name
+          return nil unless @@factory.keys[-2]
+          "#{@@factory.model.table_name}_part_#{@@factory.keys[-2].partition_handle(:key_hash => key)}"
         end
 
         # Modify parameters to suit ranges if required
@@ -107,6 +91,25 @@ module ActiveRecord
             end
             hash
           end
+
+          def key
+            hash = HashWithIndifferentAccess.new
+            @@factory.keys.each do |k|
+              case k.type
+                when :continuous
+                  # TODO: We do this a lot - can we DRY it up?
+                  r_start = self.send("#{k.column}_begin")
+                  r_end = self.send("#{k.column}_end")
+                  r_exclusive = self.send("#{k.column}_exclusive")
+                  hash[k.column] = Range.new(r_start, r_end, r_exclusive)
+                when :discrete
+                  hash[k.column] = self.send(k.column)
+              end
+            end
+            hash
+          end
+
+
       end
     end
   end
