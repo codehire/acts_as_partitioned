@@ -78,7 +78,8 @@ module ActiveRecord
         # Here we see if a value fits within the range
         # Use this method if you want to know which partition
         # to write data to
-        def find_for(hash)
+        def find_for(_hash)
+          hash = _hash.symbolize_keys
           conditions = {}
           @keys.each do |key|
             puts "key = #{key.inspect}"
