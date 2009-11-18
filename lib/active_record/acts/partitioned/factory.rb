@@ -47,8 +47,7 @@ module ActiveRecord
 
         def copy(filename)
           conn = @model.connection.raw_connection
-          system(`psql --set ON_ERROR_STOP=1 --single-transaction -p #{conn.port} -h #{conn.host} -U #{conn.user} #{conn.db} < #{filename}`)
-          $?.success?
+          "psql --set ON_ERROR_STOP=1 --single-transaction -p #{conn.port} -h #{conn.host} -U #{conn.user} #{conn.db} < #{filename}"
         end
 
         # Arguments are the keys specified in creation as a hash
