@@ -4,7 +4,13 @@ module ActiveRecord
       class Partition < ActiveRecord::Base
 
         def self.set_factory(factory)
-          @@factory = factory
+          define_attr_method(:factory) do
+            factory
+          end
+        end
+
+        def self.factory
+          nil
         end
 
         # TODO: WHAT THE HELL??
@@ -29,17 +35,17 @@ module ActiveRecord
         # TODO: Maybe we should overwrite destroy
         def drop!
           self.transaction do
-            @@factory.model.connection.execute "DROP TABLE #{name}"
+            self.class.factory.model.connection.execute "DROP TABLE #{name}"
             self.destroy
             if num_siblings == 0
               # Delete the parent
-              @@factory.model.connection.execute "DROP TABLE #{parent_name}"
+              self.class.factory.model.connection.execute "DROP TABLE #{parent_name}"
             end
           end
         end
 
         def num_siblings
-          parent = @@factory.keys[-2] # second to last
+          parent = self.class.factory.keys[-2] # second to last
           if parent
             # TODO: This won't handle a ranged parent yet
             self.class.count(:conditions => { parent.column => attributes[parent.column] })
@@ -49,8 +55,8 @@ module ActiveRecord
         # Will unlink the partition from the parent table but not delete
         def unlink
           self.transaction do
-            @@factory.model.connection.execute <<-SQL
-              ALTER TABLE #{name} NO INHERIT #{@@factory.model.table_name};
+            self.class.factory.model.connection.execute <<-SQL
+              ALTER TABLE #{name} NO INHERIT #{self.class.factory.model.table_name};
               ALTER TABLE #{name} RENAME TO #{name}_unlinked;
             SQL
             self.destroy
@@ -58,7 +64,7 @@ module ActiveRecord
         end
 
         def dump
-          conn = @@factory.model.connection.raw_connection
+          conn = self.class.factory.model.connection.raw_connection
           `pg_dump -h #{conn.host} -U #{conn.user} -t #{self.tablename} #{conn.db} | gzip`
         end
 
@@ -68,12 +74,12 @@ module ActiveRecord
         end
 
         def name
-          "#{@@factory.model.table_name}_part_#{@@factory.keys.partition_handle(:key_hash => key)}"
+          "#{self.class.factory.model.table_name}_part_#{self.class.factory.keys.partition_handle(:key_hash => key)}"
         end
 
         def parent_name
-          return nil unless @@factory.keys[-2]
-          "#{@@factory.model.table_name}_part_#{@@factory.keys[-2].partition_handle(:key_hash => key)}"
+          return nil unless self.class.factory.keys[-2]
+          "#{self.class.factory.model.table_name}_part_#{self.class.factory.keys[-2].partition_handle(:key_hash => key)}"
         end
 
         # Modify parameters to suit ranges if required
@@ -94,10 +100,9 @@ module ActiveRecord
 
           def key
             hash = HashWithIndifferentAccess.new
-            @@factory.keys.each do |k|
+            self.class.factory.keys.each do |k|
               case k.type
                 when :continuous
-                  # TODO: We do this a lot - can we DRY it up?
                   r_start = self.send("#{k.column}_begin")
                   r_end = self.send("#{k.column}_end")
                   r_exclusive = self.send("#{k.column}_exclusive")
@@ -108,8 +113,6 @@ module ActiveRecord
             end
             hash
           end
-
-
       end
     end
   end

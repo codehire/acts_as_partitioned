@@ -18,11 +18,11 @@ class PartitionCacheEntryTest < Test::Unit::TestCase
     @entry = MyTestEntry.new(@keys)
     @entry.username = "daniel"
     @entry.profile_id = 1
-    @entry.created_at = (Time.today - 5.days)...(Time.today + 1.day)
+    @entry.created_at = (Date.today.to_time - 5.days)...(Date.today.to_time + 1.day)
     # Test within range (===)
     assert @entry == { :username => 'daniel', :profile_id => 1, :created_at => Time.now }
     # Test exact match (==)
-    assert @entry == { :username => 'daniel', :profile_id => 1, :created_at => (Time.today - 5.days)...(Time.today + 1.day) }
+    assert @entry == { :username => 'daniel', :profile_id => 1, :created_at => (Date.today.to_time - 5.days)...(Date.today.to_time + 1.day) }
     assert !(@entry == { :username => 'da', :profile_id => 2, :created_at => Time.now })
     assert_raise(RuntimeError) {
       @entry == { :profile_id => 1, :created_at => Time.now }

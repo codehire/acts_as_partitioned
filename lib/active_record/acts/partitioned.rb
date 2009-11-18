@@ -25,7 +25,6 @@ module ActiveRecord
       module ClassMethods
       	def partition(*args)
           options = args.extract_options!
-          sing = class << self; self; end
           eval <<-EVAL
             class ActiveRecord::Acts::Partitioned::#{self.name}Partition < ActiveRecord::Acts::Partitioned::Partition
               set_table_name '#{self.table_name}_partitions'
@@ -36,11 +35,21 @@ module ActiveRecord
 	        args.each { |arg| factory.partition_by(key) }
 	        yield factory if block_given?
           factory.set_validations
-          sing.send(:define_method, :partitions) { factory }
-          sing.send(:define_method, :partitioned?) { true }
+          define_attr_method(:partitioned?, true)
+          define_attr_method(:partitions) do
+            factory
+          end
           # TODO: Put this in sep rake task and call on factory - should this be called Proxy
 	        #factory.migrate(:force => true)
 	      end
+
+        def partitions
+          nil
+        end
+
+        def partitioned?
+          false
+        end
       end
     end
   end

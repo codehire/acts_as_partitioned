@@ -8,6 +8,7 @@ module ActiveRecord
         attr_reader :model, :partition_class
         attr_reader :keys
       	delegate :find, :to => :partition_class
+      	delegate :count, :to => :partition_class
 	      delegate :with_key, :to => :partition_class
 
         def initialize(model, partition_class, options = {})
@@ -40,7 +41,7 @@ module ActiveRecord
           end
         end
 
-        def migrate(options = {:force => false})
+        def init(options = {:force => false})
           Structure.init_partition_catalog(model, @keys, options)
         end
 
@@ -58,6 +59,12 @@ module ActiveRecord
             @keys.create_partition_tables(@model, :key_hash => key_hash)
             # TODO: Indexes
             partition
+          end
+        end
+
+        def clear
+          partition_class.find(:all).each do |partition|
+            partition.drop!
           end
         end
 

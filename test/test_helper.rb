@@ -15,11 +15,19 @@ load(File.dirname(__FILE__) + "/schema.rb")
 
 class Item < ActiveRecord::Base
   partition do |part|
-    part.partition_by :created_at, :ranged => true
     part.partition_by :profile_id
+    part.partition_by :created_at, :ranged => true
   end
 end
 
-Item.partitions.migrate(:force => true)
-Item.partitions.create(:created_at => (Time.today - 2.days)...(Time.today - 1.day), :profile_id => 1)
-Item.partitions.create(:created_at => (Time.today - 2.days)...(Time.today - 1.day), :profile_id => 2)
+class User < ActiveRecord::Base
+  partition do |part|
+    part.partition_by :group_id
+  end
+end
+
+Item.partitions.init(:force => true)
+User.partitions.init(:force => true)
+
+puts "Item partitions = #{Item.partitions.inspect}"
+puts "User partitions = #{User.partitions.inspect}"

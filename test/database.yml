@@ -2,6 +2,7 @@
 
 test:
   adapter: postgresql
-  username: postgres
+  username: daniel
+  password: 12qwaszx
   host: localhost
   database: acts_as_partitioned_plugin
