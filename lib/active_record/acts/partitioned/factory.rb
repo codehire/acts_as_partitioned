@@ -47,7 +47,8 @@ module ActiveRecord
 
         def copy(filename)
           conn = @model.connection.raw_connection
-          `psql --set ON_ERROR_STOP=1 --single-transaction -p #{conn.port} -h #{conn.host} -U #{conn.user} -t #{self.tablename} #{conn.db} < #{filename}`
+          system(`psql --set ON_ERROR_STOP=1 --single-transaction -p #{conn.port} -h #{conn.host} -U #{conn.user} #{conn.db} < #{filename}`)
+          $?.success?
         end
 
         # Arguments are the keys specified in creation as a hash
@@ -80,6 +81,7 @@ module ActiveRecord
         def find_for(hash)
           conditions = {}
           @keys.each do |key|
+            puts "key = #{key.inspect}"
             value = hash[key.column.to_sym]
             raise "No value provided for #{key.column}" unless value
             case key.type
