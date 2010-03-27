@@ -45,9 +45,16 @@ module ActiveRecord
           Structure.init_partition_catalog(model, @keys, options)
         end
 
-        def copy(filename)
-          conn = @model.connection.raw_connection
-          "psql --set ON_ERROR_STOP=1 --single-transaction -p #{conn.port} -h #{conn.host} -U #{conn.user} #{conn.db} < #{filename}"
+        def copy(filename, db_name = nil)
+          port, host, user, db = if db_name
+            config = ActiveRecord::Base.configurations[db_name.to_s]
+            raise "No such DB configuration: #{db_name}" unless config
+            [config['port'], config['host'], config['username'], config['database']]
+          else
+            conn = @model.connection.raw_connection
+            [conn.port, conn.host, conn.user, conn.db]
+          end
+          "psql --set ON_ERROR_STOP=1 --single-transaction -p #{port} -h #{host} -U #{user} #{db} < #{filename}"
         end
 
         # Arguments are the keys specified in creation as a hash

@@ -4,46 +4,45 @@ module ActiveRecord
   module Acts
     module Partitioned
       class CopyProxy
-	def initialize(keys, factory)
+       	def initialize(keys, factory)
           @keys = keys
           @factory = factory
-	  @cache = Cache::PartitionCache.new(@keys)
-	end
+	        @cache = Cache::PartitionCache.new(@keys)
+	      end
 
-	# determine partition
+        # determine partition
         # grab the partition keys from the hash (raise if missing)
-	# try to find an open copy file
-	# A copy file is linked to a partition - if we don't have one then should we fail or build a new part?
-	# if not create one
-	# expire old copy files
+        # try to find an open copy file
+        # A copy file is linked to a partition - if we don't have one then should we fail or build a new part?
+        # if not create one
+        # expire old copy files
         def <<(hash)
-	  values = find_key_values(hash)
-	  partition = @cache.find(values)
-	  unless partition
+          values = find_key_values(hash)
+          partition = @cache.find(values)
+          unless partition
             # TODO: If there is no partition for then we need to create one
             # We should provide a creation function - specifically how to create a partition with the desired key range
             partition = @factory.find_for(hash)
             raise "No partition for hash (#{hash.inspect})" unless partition
             @cache.add(partition)
-	  end
-          p @cache
+	        end
           partition.copy_into << hash
-	end
-
-	private
-	  def find_key_values(hash)
-            values = {}
-	    hash.each_pair do |key, value|
-	      if @keys.columns.include?(key)
-	        values[key] = value
 	      end
-	    end
-	    if values.keys.size < @keys.size
-	      raise "Not all keys provided to copy data into partition: #{@keys.columns.join(',')} needed"
-	    end
-	    values
-	  end
-      end
+
+        private
+          def find_key_values(hash)
+            values = {}
+            hash.each_pair do |key, value|
+              if @keys.columns.include?(key)
+                values[key] = value
+              end
+            end
+            if values.keys.size < @keys.size
+              raise "Not all keys provided to copy data into partition: #{@keys.columns.join(',')} needed"
+            end
+            values
+          end
+        end
 
 
       class CopyFile
