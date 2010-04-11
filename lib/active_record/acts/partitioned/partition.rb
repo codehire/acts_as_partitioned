@@ -32,8 +32,8 @@ module ActiveRecord
           super(self.class.modified_attrs(attrs))
         end
 
-        # TODO: Maybe we should overwrite destroy
         def drop!
+          return unless partition_exists?
           self.transaction do
             self.class.factory.model.connection.execute "DROP TABLE #{name}"
             self.destroy
@@ -65,6 +65,7 @@ module ActiveRecord
 
         def dump
           conn = self.class.factory.model.connection.raw_connection
+          raise "Partition does not exist" unless partition_exists?
           `pg_dump -h #{conn.host} -U #{conn.user} -t #{self.tablename} #{conn.db} | gzip`
         end
 
@@ -80,6 +81,10 @@ module ActiveRecord
         def parent_name
           return nil unless self.class.factory.keys[-2]
           "#{self.class.factory.model.table_name}_part_#{self.class.factory.keys[-2].partition_handle(:key_hash => key)}"
+        end
+
+        def partition_exists?
+          self.connection.table_exists?(name)
         end
 
         # Modify parameters to suit ranges if required
