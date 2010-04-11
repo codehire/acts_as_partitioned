@@ -33,13 +33,14 @@ module ActiveRecord
         end
 
         def drop!
-          return unless partition_exists?
           self.transaction do
-            self.class.factory.model.connection.execute "DROP TABLE #{name}"
+            if partition_exists?
+              self.connection.execute "DROP TABLE #{name}"
+            end
             self.destroy
             if num_siblings == 0
               # Delete the parent
-              self.class.factory.model.connection.execute "DROP TABLE #{parent_name}"
+              self.connection.execute "DROP TABLE #{parent_name}"
             end
           end
         end
